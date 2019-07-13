@@ -21,6 +21,10 @@
 const NSUInteger ARTDefaultLimit = 100;
 
 @implementation ARTPushChannel {
+@private
+    dispatch_queue_t _queue;
+    dispatch_queue_t _userQueue;
+@public
     __weak ARTRest *_rest;
     __weak ARTLog *_logger;
     __weak ARTChannel *_channel;
@@ -29,6 +33,8 @@ const NSUInteger ARTDefaultLimit = 100;
 - (instancetype)init:(ARTRest *)rest withChannel:(ARTChannel *)channel {
     if (self == [super self]) {
         _rest = rest;
+        _queue = rest.queue;
+        _userQueue = rest.userQueue;
         _logger = [rest logger];
         _channel = channel;
         _logger = channel.logger;
@@ -53,6 +59,18 @@ const NSUInteger ARTDefaultLimit = 100;
 }
 
 - (void)subscribeDevice:(void(^_Nullable)(ARTErrorInfo *_Nullable))callback {
+    if (callback) {
+        void (^userCallback)(ARTErrorInfo *_Nullable error) = callback;
+        callback = ^(ARTErrorInfo *_Nullable error) {
+            ART_EXITING_ABLY_CODE(self->_rest);
+            dispatch_async(self->_userQueue, ^{
+                userCallback(error);
+            });
+        };
+    }
+
+dispatch_async(_queue, ^{
+ART_TRY_OR_REPORT_CRASH_START(self->_rest) {
     ARTLocalDevice *device = [self getDevice:callback];
     if (![device isRegistered]) {
         return;
@@ -61,23 +79,37 @@ const NSUInteger ARTDefaultLimit = 100;
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"/push/channelSubscriptions"]];
     request.HTTPMethod = @"POST";
-    request.HTTPBody = [[_rest defaultEncoder] encode:@{
+    request.HTTPBody = [[self->_rest defaultEncoder] encode:@{
         @"deviceId": deviceId,
-        @"channel": _channel.name,
+        @"channel": self->_channel.name,
     } error:nil];
-    [request setValue:[[_rest defaultEncoder] mimeType] forHTTPHeaderField:@"Content-Type"];
+    [request setValue:[[self->_rest defaultEncoder] mimeType] forHTTPHeaderField:@"Content-Type"];
     [request setDeviceAuthentication:deviceId localDevice:device];
 
-    [_logger debug:__FILE__ line:__LINE__ message:@"subscribe notifications for device %@ in channel %@", deviceId, _channel.name];
-    [_rest executeRequest:request withAuthOption:ARTAuthenticationOn completion:^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
+    [self->_logger debug:__FILE__ line:__LINE__ message:@"subscribe notifications for device %@ in channel %@", deviceId, self->_channel.name];
+    [self->_rest executeRequest:request withAuthOption:ARTAuthenticationOn completion:^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
         if (error) {
             [self->_logger error:@"%@: subscribe notifications for device %@ in channel %@ failed (%@)", NSStringFromClass(self.class), deviceId, self->_channel.name, error.localizedDescription];
         }
         if (callback) callback(error ? [ARTErrorInfo createFromNSError:error] : nil);
     }];
+} ART_TRY_OR_REPORT_CRASH_END
+});
 }
 
 - (void)subscribeClient:(void(^_Nullable)(ARTErrorInfo *_Nullable))callback {
+    if (callback) {
+        void (^userCallback)(ARTErrorInfo *_Nullable error) = callback;
+        callback = ^(ARTErrorInfo *_Nullable error) {
+            ART_EXITING_ABLY_CODE(self->_rest);
+            dispatch_async(self->_userQueue, ^{
+                userCallback(error);
+            });
+        };
+    }
+
+dispatch_async(_queue, ^{
+ART_TRY_OR_REPORT_CRASH_START(self->_rest) {
     NSString *clientId = [self getClientId:callback];
     if (!clientId) {
         return;
@@ -85,22 +117,36 @@ const NSUInteger ARTDefaultLimit = 100;
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"/push/channelSubscriptions"]];
     request.HTTPMethod = @"POST";
-    request.HTTPBody = [[_rest defaultEncoder] encode:@{
+    request.HTTPBody = [[self->_rest defaultEncoder] encode:@{
         @"clientId": clientId,
-        @"channel": _channel.name,
+        @"channel": self->_channel.name,
     } error:nil];
-    [request setValue:[[_rest defaultEncoder] mimeType] forHTTPHeaderField:@"Content-Type"];
+    [request setValue:[[self->_rest defaultEncoder] mimeType] forHTTPHeaderField:@"Content-Type"];
 
-    [_logger debug:__FILE__ line:__LINE__ message:@"subscribe notifications for clientId %@ in channel %@", clientId, _channel.name];
-    [_rest executeRequest:request withAuthOption:ARTAuthenticationOn completion:^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
+    [self->_logger debug:__FILE__ line:__LINE__ message:@"subscribe notifications for clientId %@ in channel %@", clientId, self->_channel.name];
+    [self->_rest executeRequest:request withAuthOption:ARTAuthenticationOn completion:^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
         if (error) {
             [self->_logger error:@"%@: subscribe notifications for clientId %@ in channel %@ failed (%@)", NSStringFromClass(self.class), clientId, self->_channel.name, error.localizedDescription];
         }
         if (callback) callback(error ? [ARTErrorInfo createFromNSError:error] : nil);
     }];
+} ART_TRY_OR_REPORT_CRASH_END
+});
 }
 
 - (void)unsubscribeDevice:(void(^_Nullable)(ARTErrorInfo *_Nullable))callback {
+    if (callback) {
+        void (^userCallback)(ARTErrorInfo *_Nullable error) = callback;
+        callback = ^(ARTErrorInfo *_Nullable error) {
+            ART_EXITING_ABLY_CODE(self->_rest);
+            dispatch_async(self->_userQueue, ^{
+                userCallback(error);
+            });
+        };
+    }
+
+dispatch_async(_queue, ^{
+ART_TRY_OR_REPORT_CRASH_START(self->_rest) {
     ARTLocalDevice *device = [self getDevice:callback];
     if (![device isRegistered]) {
         return;
@@ -110,23 +156,37 @@ const NSUInteger ARTDefaultLimit = 100;
     NSURLComponents *components = [[NSURLComponents alloc] initWithURL:[NSURL URLWithString:@"/push/channelSubscriptions"] resolvingAgainstBaseURL:NO];
     components.queryItems = @[
         [NSURLQueryItem queryItemWithName:@"deviceId" value:deviceId],
-        [NSURLQueryItem queryItemWithName:@"channel" value:_channel.name],
+        [NSURLQueryItem queryItemWithName:@"channel" value:self->_channel.name],
     ];
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[components URL]];
     request.HTTPMethod = @"DELETE";
     [request setDeviceAuthentication:deviceId localDevice:device];
 
-    [_logger debug:__FILE__ line:__LINE__ message:@"unsubscribe notifications for device %@ in channel %@", deviceId, _channel.name];
-    [_rest executeRequest:request withAuthOption:ARTAuthenticationOn completion:^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
+    [self->_logger debug:__FILE__ line:__LINE__ message:@"unsubscribe notifications for device %@ in channel %@", deviceId, self->_channel.name];
+    [self->_rest executeRequest:request withAuthOption:ARTAuthenticationOn completion:^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
         if (error) {
             [self->_logger error:@"%@: unsubscribe notifications for device %@ in channel %@ failed (%@)", NSStringFromClass(self.class), deviceId, self->_channel.name, error.localizedDescription];
         }
         if (callback) callback(error ? [ARTErrorInfo createFromNSError:error] : nil);
     }];
+} ART_TRY_OR_REPORT_CRASH_END
+});
 }
 
 - (void)unsubscribeClient:(void(^_Nullable)(ARTErrorInfo *_Nullable))callback {
+    if (callback) {
+        void (^userCallback)(ARTErrorInfo *_Nullable error) = callback;
+        callback = ^(ARTErrorInfo *_Nullable error) {
+            ART_EXITING_ABLY_CODE(self->_rest);
+            dispatch_async(self->_userQueue, ^{
+                userCallback(error);
+            });
+        };
+    }
+
+dispatch_async(_queue, ^{
+ART_TRY_OR_REPORT_CRASH_START(self->_rest) {
     NSString *clientId = [self getClientId:callback];
     if (!clientId) {
         return;
@@ -135,22 +195,37 @@ const NSUInteger ARTDefaultLimit = 100;
     NSURLComponents *components = [[NSURLComponents alloc] initWithURL:[NSURL URLWithString:@"/push/channelSubscriptions"] resolvingAgainstBaseURL:NO];
     components.queryItems = @[
         [NSURLQueryItem queryItemWithName:@"clientId" value:clientId],
-        [NSURLQueryItem queryItemWithName:@"channel" value:_channel.name],
+        [NSURLQueryItem queryItemWithName:@"channel" value:self->_channel.name],
     ];
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[components URL]];
     request.HTTPMethod = @"DELETE";
 
-    [_logger debug:__FILE__ line:__LINE__ message:@"unsubscribe notifications for clientId %@ in channel %@", clientId, _channel.name];
-    [_rest executeRequest:request withAuthOption:ARTAuthenticationOn completion:^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
+    [self->_logger debug:__FILE__ line:__LINE__ message:@"unsubscribe notifications for clientId %@ in channel %@", clientId, self->_channel.name];
+    [self->_rest executeRequest:request withAuthOption:ARTAuthenticationOn completion:^(NSHTTPURLResponse *response, NSData *data, NSError *error) {
         if (error) {
             [self->_logger error:@"%@: unsubscribe notifications for clientId %@ in channel %@ failed (%@)", NSStringFromClass(self.class), clientId, self->_channel.name, error.localizedDescription];
         }
         if (callback) callback(error ? [ARTErrorInfo createFromNSError:error] : nil);
     }];
+} ART_TRY_OR_REPORT_CRASH_END
+});
 }
 
-- (BOOL)listSubscriptions:(NSDictionary<NSString *, NSString *> *)params callback:(void(^)(ARTPaginatedResult<ARTPushChannelSubscription *> *_Nullable, ARTErrorInfo *_Nullable))callback error:(NSError *_Nullable *_Nullable)errorPtr {
+- (BOOL)listSubscriptions:(NSDictionary<NSString *, NSString *> *)params callback:(void(^)(ARTPaginatedResult<ARTPushChannelSubscription *> *_Nullable, ARTErrorInfo *_Nullable))callback error:(NSError * __autoreleasing *)errorPtr {
+    if (callback) {
+        void (^userCallback)(ARTPaginatedResult<ARTPushChannelSubscription *> *result, ARTErrorInfo *error) = callback;
+        callback = ^(ARTPaginatedResult<ARTPushChannelSubscription *> *result, ARTErrorInfo *error) {
+            ART_EXITING_ABLY_CODE(self->_rest);
+            dispatch_async(self->_userQueue, ^{
+                userCallback(result, error);
+            });
+        };
+    }
+
+    __block BOOL ret;
+dispatch_sync(_queue, ^{
+ART_TRY_OR_REPORT_CRASH_START(self->_rest) {
     NSMutableDictionary<NSString *, NSString *> *mutableParams = params ? [NSMutableDictionary dictionaryWithDictionary:params] : [[NSMutableDictionary alloc] init];
 
     if (!mutableParams[@"deviceId"] && !mutableParams[@"clientId"]) {
@@ -159,7 +234,8 @@ const NSUInteger ARTDefaultLimit = 100;
                                             code:ARTDataQueryErrorMissingRequiredFields
                                         userInfo:@{NSLocalizedDescriptionKey:@"cannot list subscriptions with null device ID or null client ID"}];
         }
-        return NO;
+        ret = NO;
+        return;
     }
     if (mutableParams[@"deviceId"] && mutableParams[@"clientId"]) {
         if (errorPtr) {
@@ -167,7 +243,8 @@ const NSUInteger ARTDefaultLimit = 100;
                                             code:ARTDataQueryErrorInvalidParameters
                                         userInfo:@{NSLocalizedDescriptionKey:@"cannot list subscriptions with device ID and client ID"}];
         }
-        return NO;
+        ret = NO;
+        return;
     }
 
     mutableParams[@"concatFilters"] = @"true";
@@ -181,12 +258,15 @@ const NSUInteger ARTDefaultLimit = 100;
         return [self->_rest.encoders[response.MIMEType] decodePushChannelSubscriptions:data error:error];
     };
 
-    [ARTPaginatedResult executePaginated:_rest withRequest:request andResponseProcessor:responseProcessor callback:callback];
-    return YES;
+    [ARTPaginatedResult executePaginated:self->_rest withRequest:request andResponseProcessor:responseProcessor callback:callback];
+    ret = YES;
+} ART_TRY_OR_REPORT_CRASH_END
+});
+    return ret;
 }
 
 - (ARTLocalDevice *)getDevice:(void(^_Nullable)(ARTErrorInfo *_Nullable))callback {
-    ARTLocalDevice *device = [_channel device];
+    ARTLocalDevice *device = _rest.device_nosync;
     if (![device isRegistered]) {
         if (callback) callback([ARTErrorInfo createWithCode:0 message:@"cannot use device before device activation has finished"]);
     }
