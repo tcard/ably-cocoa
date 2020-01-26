@@ -32,4 +32,6 @@ blocks:
                 - iOS11
                 - tvOS12
                 - macOS
+      secrets:
+        - name: GITHUB_ACCESS_TOKEN
     dependencies: []
