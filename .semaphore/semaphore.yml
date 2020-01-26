@@ -19,7 +19,6 @@ blocks:
       jobs:
         - name: bundle exec fastlane test
           commands:
-            - bundle exec xcversion select 10.2.1
             - >-
               case $LANE in iOS*) PLATFORM="iOS";; tvOS*) PLATFORM="tvOS";;
               macOS*) PLATFORM="macOS";; esac
