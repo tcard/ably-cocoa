@@ -10,6 +10,8 @@ blocks:
       env_vars:
         - name: LANG
           value: en_US.UTF-8
+        - name: ABLY_ENV
+          value: sandbox
       prologue:
         commands:
           - checkout
