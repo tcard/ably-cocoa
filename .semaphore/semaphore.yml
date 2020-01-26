@@ -17,7 +17,7 @@ blocks:
           - checkout
           - cache restore
           - bundle install
-          - gem install xcversion
+          - gem install xcode-install
           - xcversion select 11.2.1
           - cache store
       jobs:
