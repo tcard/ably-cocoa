@@ -17,6 +17,8 @@ blocks:
           - checkout
           - cache restore
           - bundle install
+          - gem install xcversion
+          - xcversion select 11.2.1
           - cache store
       jobs:
         - name: bundle exec fastlane test
